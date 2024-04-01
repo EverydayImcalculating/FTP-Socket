@@ -6,12 +6,11 @@ BUFFER = 1024
 FORMAT = "utf-8"
 PORT = 5050
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = "127.0.0.1"
+SERVER = "127.0.0.2"
 ADDR = (SERVER, PORT)
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
-server.listen();
 
 
 def handle_client(conn, addr):
