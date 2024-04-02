@@ -3,14 +3,13 @@ import threading
 
 BUFFER = 1024
 FORMAT = "utf-8"
-PORT = 5050
-SERVER = "127.0.0.2"
-DISCONNECT_MESSAGE = "!DISCONNECT"
-ADDR = (SERVER, PORT)
+PORT = 21
+SERVER = ""
+ADDR = ("", PORT)
 
-# client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# client.connect(ADDR)
+isConnected = False
 
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # def send(msg):
 #     message = msg.encode(FORMAT)
@@ -19,13 +18,43 @@ ADDR = (SERVER, PORT)
 #     send_length += b" " * (BUFFER - len(send_length))
 #     client.send(send_length)
 #     client.send(message)
-#     print(client.recv(2048).decode(FORMAT))
+#     print(client.recv(2048).decode(FORMAT))w
 
-# send("HEllo")
-# send(DISCONNECT_MESSAGE)
+
+def quit(status):
+    client.send(b"quit")
+    # Wait for server go-ahead
+    resp = client.recv(BUFFER)
+    client.close()
+    print("Server connection ended")
+
+
+def open(cmd, args):
+    if not args == "":
+        print("Sending server request...")
+        try:
+            ADDR = (args, PORT)
+            client.connect(ADDR)
+            print("Connection sucessful")
+        except:
+            print("Connection unsucessful. Make sure the server is online.")
+    else:
+        addr = input("To ")
+        print(addr)
+
+    pass
+
+
+def handle_command(cmd, args = None, status = None):
+
+    if cmd == "quit":
+        quit()
+    elif cmd == "open":
+        open(cmd, args)
+    pass
+
 
 while True:
-
     command_list = [
         "ascii",
         "binary",
@@ -44,29 +73,35 @@ while True:
         "rename",
         "user",
     ]
-    quit_command = ["bye", "quit"]
+    command_input = input("ftp> ").split(" ")  # Remove leading and trailing whitespaces
 
-    command_input = input("ftp> ").lower()
+    print(command_input)
 
+    # Case 4: Empty input
     if not command_input:
         continue
 
-    if command_input in quit_command:
-        print()
-        break
-        
+    cmd, args = command_input[0], ""
+
+    if len(command_input) > 1:
+        args = command_input[1]
+
     matched_commands = []
     # Check for full matches, partial matches, and ambiguous matches
     for command in command_list:
-        if command_input == command:
-            print("Command executed:", command)  # Case 1: Full match
+        if cmd == command:
+            # Case 1: Full match
+            print("Command executed:", command)
+            handle_command(command, args)
             break
-        elif command.startswith(command_input):
+        elif command.startswith(cmd):
             matched_commands.append(command)
     else:
         # Case 2: Ambiguous command
         if len(matched_commands) > 1:
-            print("Ambiguous command.")
+            print("Ambiguous command. Possible matches:")
+            for command in matched_commands:
+                print(command)
         # Case 3: Abbreviated match
         elif len(matched_commands) == 1:
             print("Command executed:", matched_commands[0])
