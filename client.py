@@ -1,5 +1,6 @@
 import socket
 import threading
+from getpass import getpass
 
 BUFFER = 1024
 FORMAT = "utf-8"
@@ -13,7 +14,7 @@ command_list = [
     "binary",  #
     "bye",  #
     "cd",
-    "close", #
+    "close",  #
     "delete",
     "disconnect",  #
     "get",
@@ -21,10 +22,10 @@ command_list = [
     "ls",
     "open",  #
     "put",
-    "pwd",
+    "pwd",  #
     "quit",  #
-    "rename",
-    "user",
+    "rename",  #
+    "user",  ##
 ]
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,10 +34,15 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 def send(msg):
     message = msg.encode(FORMAT) + b"\r\n"
     client.sendall(message)
-    print(receive_response(), end="")
 
 
-def receive_response():
+def voidsend(msg):
+    message = msg.encode(FORMAT) + b"\r\n"
+    client.sendall(message)
+    print(get_resp(), end="")
+
+
+def get_resp():
     response = b""
     while True:
         part = client.recv(BUFFER)
@@ -52,7 +58,7 @@ def close():
         print("Not connected.")
         return
     else:
-        send("QUIT")
+        voidsend("QUIT")
         isConnected = False
 
 
@@ -62,24 +68,15 @@ def disconnect():
         print("Not connected.")
         return
     else:
-        send("QUIT")
+        voidsend("QUIT")
         isConnected = False
-
-
-def bye():
-    if not isConnected:
-        exit()
-    else:
-        send("QUIT")
-        client.close()
-        exit()
 
 
 def quit():
     if not isConnected:
         exit()
     else:
-        send("QUIT")
+        voidsend("QUIT")
         client.close()
         exit()
 
@@ -91,15 +88,15 @@ def open(args):
             ADDR = (args, PORT)
             client.connect(ADDR)
             print(f"Connected to {args}.")
-            print(receive_response(), end="")
+            print(get_resp(), end="")
             ip = socket.gethostbyname(socket.gethostname())
             host = socket.gethostname()
             username = input(f"Name ({ip}:{host}): ")
             cuser = "USER " + username
-            send(cuser)
-            passwd = input("Password: ")
+            voidsend(cuser)
+            passwd = getpass("Password: ")
             cpasswd = "PASS " + passwd
-            send(cpasswd)
+            voidsend(cpasswd)
             isConnected = True
         except:
             print("Connection unsucessful. Make sure the server is online.")
@@ -112,6 +109,74 @@ def open(args):
             isConnected = True
         except:
             print("Connection unsucessful. Make sure the server is online.")
+    return
+
+
+def dir():
+    cmd = "LIST"
+    sock = socket.create_server(("127.0.0.1", 0))
+    port = sock.getsockname()[1]  # Get proper port
+    host = sock.getsockname()[0]  # Get proper host
+    hbytes = host.split(".")
+    pbytes = [repr(port // 256), repr(port % 256)]
+    bytes = hbytes + pbytes
+    port = "PORT " + ",".join(bytes)
+    send(port)
+    send(cmd)
+    return
+
+
+def path():
+    voidsend("PWD")
+    return
+
+
+def changedir(args):
+    if args == "":
+        dir = input("(remote-directory) ").strip()
+        cmd = "CWD " + dir
+    else:
+        cmd = "CWD " + args
+
+    voidsend(cmd)
+
+
+def rename(args):
+    from_name = input("(from-name) ").strip()
+    to_name = input("(to-name) ").strip()
+    fromcmd = "RNFR " + from_name
+    tocmd = "RNTO " + to_name
+    voidsend(fromcmd)
+    voidsend(tocmd)
+    return
+
+
+def ascii():
+    voidsend("TYPE A")
+    return
+
+
+def binary():
+    voidsend("TYPE I")
+    return
+
+
+def user(args):
+    if args == "":
+        username = input("(username) ").strip()
+        cmd = "USER " + username
+    else:
+        cmd = "USER " + args
+
+    send(cmd)
+    resp = get_resp()
+    print(resp, end="")
+    if resp.startswith("5"):
+        print("Login failed.")
+    else:
+        print("Login successful.")
+
+        return
 
 
 def handle_command(cmd, args):
@@ -121,20 +186,29 @@ def handle_command(cmd, args):
     elif cmd == "open":
         open(args)
     elif cmd == "bye":
-        bye()
+        quit()
     elif cmd == "ascii":
-        send("TYPE A")
+        ascii()
     elif cmd == "binary":
-        send("TYPE I")
+        binary()
     elif cmd == "disconnect":
         disconnect()
     elif cmd == "close":
         close()
+    elif cmd == "ls":
+        dir()
+    elif cmd == "pwd":
+        path()
+    elif cmd == "cd":
+        changedir(args)
+    elif cmd == "rename":
+        rename()
+    elif cmd == "user":
+        user()
     return
 
-
 while True:
-    command_input = input("ftp> ")  # Remove leading and trailing whitespaces
+    command_input = input("ftp> ").strip()  # Remove leading and trailing whitespaces
     # Case 4: Empty input
     if not command_input:
         continue
